@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Engrave On Ring — Preview (Font Grid V4)</title>
+
+<!-- Google fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Allura&family=Abril+Fatface&family=Dancing+Script&family=Lobster&family=Lora&family=Pacifico&family=Playfair+Display:wght@400;700&family=Poppins:wght@300;400;600&family=Quicksand:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --panel-bg: #fff;
+    --bg:#f5f5f7;
+    --text:#1d1d1f;
+    --muted:#6e6e73;
+    --accent:#0071e3;
+    --radius:12px;
+    --card-h: 96px;
+  }
+  html,body{height:100%; margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background:var(--bg); color:var(--text);}
+  .wrap { max-width:1000px; margin:18px auto; display:grid; grid-template-columns:360px 1fr; gap:18px; padding:12px; box-sizing:border-box; }
+  .panel{ background:var(--panel-bg); border-radius:var(--radius); padding:14px; border:1px solid #d2d2d7; }
+  h2{ margin:0 0 8px 0; font-size:16px; font-weight:600; }
+  label{ display:block; margin-top:10px; margin-bottom:6px; font-weight:600; font-size:13px; }
+  input[type="text"]{ width:100%; padding:10px 12px; border-radius:8px; border:1px solid #d2d2d7; font-size:15px; box-sizing:border-box; background:#fff; color:var(--text); }
+  input[type="range"]{ width:100%; }
+  .muted{ color:var(--muted); font-size:13px; margin-top:6px; }
+  .actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  button{ padding:10px 12px; border-radius:8px; border:0; cursor:pointer; font-weight:600; background:var(--accent); color:white; }
+  button.secondary{ background:#e5e5ea; color:var(--text); }
+
+  .preview{ background:transparent; display:flex; align-items:center; justify-content:center; min-height:520px; border-radius:var(--radius); }
+  .stage{ position:relative; width:100%; max-width:760px; }
+  img#ringImg{ width:100%; display:block; border-radius:8px; }
+  svg.overlay{ position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+
+  /* Font grid */
+  .font-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; margin-top:8px; }
+  @media (min-width:440px){ .font-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+  @media (min-width:720px){ .font-grid{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+  .font-card{
+    border:1px solid #d2d2d7; border-radius:10px; padding:8px; background:#fff; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+    height:var(--card-h);
+    transition:box-shadow .08s ease, border-color .08s ease, transform .08s ease;
+    outline:2px solid transparent; outline-offset:2px;
+  }
+  .font-card:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.06); }
+  .font-card.selected{ outline-color: rgba(0,113,227,.35); border-color: var(--accent); }
+  .font-name{ font-size:12px; color:var(--muted); text-align:center; width:100%; line-height:1; margin-top:6px; }
+  .font-sample{
+    display:flex; align-items:center; justify-content:center; width:100%;
+    text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    line-height:1.2; min-height:48px;
+  }
+
+  .note{ font-size:13px; color:var(--muted); margin-top:10px; }
+  .row{ display:flex; gap:8px; align-items:center; }
+
+  /* Responsive layout */
+  @media (max-width: 780px){
+    .wrap{ grid-template-columns: 1fr; }
+    .preview{ min-height: 380px; }
+    .actions button{ flex:1 1 auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="panel" role="region" aria-label="Controls">
+    <h2>Engraving Controls</h2>
+
+    <label for="engraveText">Text (max 34)</label>
+    <input id="engraveText" type="text" maxlength="34" value="Forever & Ever" aria-describedby="charsLeftHelp">
+    <div id="charsLeftHelp" class="muted">Characters left: <strong id="charsLeft">0</strong></div>
+
+    <label for="fontSize">Font size: <span id="fontSizeLabel">24</span> px</label>
+    <input id="fontSize" type="range" min="10" max="48" value="24" aria-label="Font size">
+
+    <label>Choose a font</label>
+    <div id="fontGrid" class="font-grid" role="listbox" aria-label="Font choices"></div>
+
+    <div class="actions">
+      <button id="downloadSvg">Download SVG</button>
+      <button id="resetBtn" class="secondary">Reset</button>
+    </div>
+
+    <p class="note">Tip: Click a card to apply that font. The sample text mirrors what you type above.</p>
+  </div>
+
+  <div class="panel preview" role="region" aria-label="Preview">
+    <div class="stage" id="stage">
+      <img id="ringImg" src="ring.png" alt="ring image">
+      <svg class="overlay" id="overlaySVG" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <path id="engravePath" d="" fill="none"></path>
+        </defs>
+        <text id="svgText" style="font-size:24px; text-anchor:middle; fill:#111;">
+          <textPath id="textPath" href="#engravePath" startOffset="50%"></textPath>
+        </text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Fixed geometry */
+const V_OFFSET = 13;
+const RY_FIXED = 90;
+
+/* Elements */
+const MAX = 34;
+const img = document.getElementById('ringImg');
+const svg = document.getElementById('overlaySVG');
+const pathEl = document.getElementById('engravePath');
+const textPath = document.getElementById('textPath');
+const svgText = document.getElementById('svgText');
+
+const inputText = document.getElementById('engraveText');
+const charsLeft = document.getElementById('charsLeft');
+const fontSize = document.getElementById('fontSize');
+const fontSizeLabel = document.getElementById('fontSizeLabel');
+
+const downloadBtn = document.getElementById('downloadSvg');
+const resetBtn = document.getElementById('resetBtn');
+
+/* Fonts list */
+const FONTS = [
+  { label:'Allura', family:"'Allura', cursive" },
+  { label:'Calisto MT', family:"'Calisto MT', serif" },
+  { label:'Lucida Calligraphy Italic', family:"'Lucida Calligraphy', 'Lucida Calligraphy Italic', cursive" },
+  { label:'Pacifico', family:"'Pacifico', cursive" },
+  { label:'Playfair Display', family:"'Playfair Display', serif" },
+  { label:'Dancing Script', family:"'Dancing Script', cursive" },
+  { label:'Lobster', family:"'Lobster', cursive" },
+  { label:'Abril Fatface', family:"'Abril Fatface', serif" },
+  { label:'Lora', family:"'Lora', serif" },
+  { label:'Poppins', family:"'Poppins', sans-serif" },
+  { label:'Quicksand', family:"'Quicksand', sans-serif" }
+];
+
+const fontGrid = document.getElementById('fontGrid');
+let selectedFamily = FONTS[0].family;
+
+function renderFontGrid(sampleText){
+  fontGrid.innerHTML = '';
+  FONTS.forEach((f) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'font-card' + (f.family === selectedFamily ? ' selected' : '');
+    card.setAttribute('role','option');
+    card.setAttribute('aria-selected', f.family === selectedFamily ? 'true' : 'false');
+    card.dataset.family = f.family;
+
+    const sample = document.createElement('div');
+    sample.className = 'font-sample';
+    sample.style.fontFamily = f.family;
+    sample.textContent = sampleText || inputText.value || 'Sample';
+
+    const name = document.createElement('div');
+    name.className = 'font-name';
+    name.textContent = f.label;
+
+    card.appendChild(sample);
+    card.appendChild(name);
+
+    card.addEventListener('click', () => {
+      selectedFamily = f.family;
+      updateSelectedCard();
+      updateSVG();
+    });
+
+    fontGrid.appendChild(card);
+  });
+}
+
+function updateSelectedCard(){
+  [...fontGrid.querySelectorAll('.font-card')].forEach(card => {
+    const isSel = card.dataset.family === selectedFamily;
+    card.classList.toggle('selected', isSel);
+    card.setAttribute('aria-selected', isSel ? 'true' : 'false');
+  });
+}
+
+/* initial UI values */
+charsLeft.textContent = MAX - (inputText.value?.length || 0);
+fontSizeLabel.textContent = fontSize.value;
+renderFontGrid();
+
+/* Build arc and place text */
+function updateSVG() {
+  const w = img.clientWidth || img.width;
+  const h = img.clientHeight || img.height;
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+  const padding = Math.max(18, w * 0.12);
+  const leftX = padding;
+  const rightX = w - padding;
+
+  const baseCenterY = h * 0.52;
+  const centerY = baseCenterY + (V_OFFSET/100) * h;
+
+  const rx = (rightX - leftX) / 2;
+  const ry = RY_FIXED;
+
+  const d = `M ${leftX.toFixed(2)} ${centerY.toFixed(2)} A ${rx.toFixed(2)} ${ry.toFixed(2)} 0 0 1 ${rightX.toFixed(2)} ${centerY.toFixed(2)}`;
+  pathEl.setAttribute('d', d);
+
+  let txt = inputText.value || '';
+  if (txt.length > MAX) { txt = txt.slice(0, MAX); inputText.value = txt; }
+  textPath.textContent = txt;
+  charsLeft.textContent = MAX - txt.length;
+
+  svgText.style.fontFamily = selectedFamily;
+  svgText.style.fontSize = fontSize.value + 'px';
+
+  // Measure natural length first (no adjust)
+  svgText.removeAttribute('lengthAdjust');
+  svgText.removeAttribute('textLength');
+  const naturalLength = svgText.getComputedTextLength();
+
+  // Safe target length (keep margin L * 0.82)
+  const L = pathEl.getTotalLength();
+  const safe = L * 0.82;
+
+  if (naturalLength > safe && txt.length > 0) {
+    // Adjust spacing only (no glyph scaling)
+    svgText.setAttribute('lengthAdjust','spacing');
+    svgText.setAttribute('textLength', safe.toFixed(2));
+  } else {
+    svgText.removeAttribute('lengthAdjust');
+    svgText.removeAttribute('textLength');
+  }
+}
+
+/* events */
+inputText.addEventListener('input', () => { renderFontGrid(inputText.value); updateSVG(); });
+fontSize.addEventListener('input', ()=>{ fontSizeLabel.textContent = fontSize.value; updateSVG(); });
+window.addEventListener('resize', ()=>{ setTimeout(updateSVG, 50); });
+img.addEventListener('load', ()=>{ setTimeout(updateSVG, 30); });
+
+/* download svg with embedded base64 image for portability */
+downloadBtn.addEventListener('click', ()=>{
+  const cloned = svg.cloneNode(true);
+  const imgTag = document.createElementNS('http://www.w3.org/2000/svg','image');
+  imgTag.setAttributeNS(null,'href', '' || img.getAttribute('src'));
+  imgTag.setAttribute('x','0');
+  imgTag.setAttribute('y','0');
+  imgTag.setAttribute('width', svg.getAttribute('width'));
+  imgTag.setAttribute('height', svg.getAttribute('height'));
+  cloned.insertBefore(imgTag, cloned.firstChild);
+
+  const family = window.getComputedStyle(svgText).fontFamily;
+  const size = window.getComputedStyle(svgText).fontSize;
+  const txtEl = cloned.querySelector('#svgText');
+  txtEl.setAttribute('style', `font-size:${size}; text-anchor:middle; font-family:${family}; fill:#111;`);
+
+  const serializer = new XMLSerializer();
+  const str = serializer.serializeToString(cloned);
+  const blob = new Blob([str], {type: 'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'engraving_on_ring.svg'; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1500);
+});
+
+/* reset */
+resetBtn.addEventListener('click', ()=>{
+  inputText.value = 'Forever & Ever';
+  fontSize.value = 24;
+  fontSizeLabel.textContent = 24;
+  selectedFamily = FONTS[0].family;
+  renderFontGrid(inputText.value);
+  updateSVG();
+});
+
+/* init */
+if (img.complete) { updateSVG(); }
+else { img.addEventListener('load', updateSVG); }
+</script>
+</body>
+</html>
